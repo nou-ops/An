@@ -1,3 +1,12 @@
+# ★ ملف الـworkflow — انسخه كاملًا والصقه في:
+#     .github/workflows/ios-unsigned-ipa.yml   (استبدل كل المحتوى القديم)
+#
+# يعمل في حالتين:
+#   (أ) حزمة fieldwatch-payload.zip موجودة في الجذر ⇒ تُفكّ (الأعلى إصدارًا إن وُجدت أكثر من واحدة)
+#   (ب) لا توجد حزمة لكن المصادر مستخرجة في الجذر ⇒ يُبنى منها مباشرة
+#
+# وهو ينتج ٥ ملفات: IPA عادي · IPA لـTrollStore · IPA بصلاحيات platform (لمسح Wi-Fi)
+#                  + DEB rootless + DEB rootful
 name: Fieldwatch iOS
 on: [workflow_dispatch, push]
 jobs:
@@ -11,14 +20,19 @@ jobs:
           shopt -s nullglob
           zips=( *.zip )
           if [ ${#zips[@]} -gt 0 ]; then
-            newest=""
+            pick=""; pickv=""
             for z in "${zips[@]}"; do
-              if [ -z "$newest" ] || [ "$z" -nt "$newest" ]; then newest="$z"; fi
+              v=$(unzip -p "$z" PAYLOAD-VERSION.txt 2>/dev/null | sed -n 's/^الإصدار:[[:space:]]*//p' | head -1)
+              [ -z "$v" ] && v="0"
+              if [ -z "$pick" ]; then pick="$z"; pickv="$v"; continue; fi
+              newer=$(awk -v a="$v" -v b="$pickv" 'BEGIN{na=split(a,x,"[^0-9]+");nb=split(b,y,"[^0-9]+");for(i=1;i<=(na>nb?na:nb);i++){va=(i<=na?x[i]+0:0);vb=(i<=nb?y[i]+0:0);if(va>vb){print 1;exit}if(va<vb){print 0;exit}}print 0}')
+              if [ "$newer" = "1" ] || { [ "$v" = "$pickv" ] && [ "$z" -nt "$pick" ]; }; then pick="$z"; pickv="$v"; fi
             done
             if [ ${#zips[@]} -gt 1 ]; then
-              echo "⚠️ ${#zips[@]} حزم في الجذر — سأستعمل الأحدث فقط: $newest"
+              echo "⚠️ ${#zips[@]} حزم في الجذر — سأستعمل الأعلى إصدارًا: $pick (${pickv})"
               printf '   %s\n' "${zips[@]}"
             fi
+            newest="$pick"
             echo "📦 أفكّ: $newest ($(du -h "$newest" | cut -f1)) · عناصر: $(unzip -l "$newest" | tail -1 | awk '{print $2}')"
             unzip -q -o "$newest"
             rm -f "${zips[@]}"
@@ -42,6 +56,7 @@ jobs:
             [ -d "$x" ] && sudo xcode-select -s "$x" && break
           done
           xcodebuild -version
+          swift --version
 
       - name: فحص الحزمة قبل البناء
         run: bash scripts/preflight.sh
