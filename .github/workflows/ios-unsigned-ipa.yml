@@ -6,22 +6,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: فكّ الحزمة
+      - name: تجهيز المصادر (فكّ الحزمة إن وُجدت، وإلا استعمل الملفات الموجودة)
         run: |
           shopt -s nullglob
           zips=( *.zip )
-          [ ${#zips[@]} -gt 0 ] || { echo "::error::لم أجد أي حزمة .zip في جذر المستودع"; ls -la; exit 1; }
-          newest=""
-          for z in "${zips[@]}"; do if [ -z "$newest" ] || [ "$z" -nt "$newest" ]; then newest="$z"; fi; done
-          if [ ${#zips[@]} -gt 1 ]; then echo "⚠️ ${#zips[@]} حزم — سأستعمل الأحدث: $newest"; printf '   %s\n' "${zips[@]}"; fi
-          echo "📦 أفكّ: $newest ($(du -h "$newest" | cut -f1)) · عناصر: $(unzip -l "$newest" | tail -1 | awk '{print $2}')"
-          unzip -q -o "$newest"
+          if [ ${#zips[@]} -gt 0 ]; then
+            newest=""
+            for z in "${zips[@]}"; do
+              if [ -z "$newest" ] || [ "$z" -nt "$newest" ]; then newest="$z"; fi
+            done
+            if [ ${#zips[@]} -gt 1 ]; then
+              echo "⚠️ ${#zips[@]} حزم في الجذر — سأستعمل الأحدث فقط: $newest"
+              printf '   %s\n' "${zips[@]}"
+            fi
+            echo "📦 أفكّ: $newest ($(du -h "$newest" | cut -f1)) · عناصر: $(unzip -l "$newest" | tail -1 | awk '{print $2}')"
+            unzip -q -o "$newest"
+            rm -f "${zips[@]}"
+          else
+            echo "ℹ️ لا توجد حزمة .zip — أُكمل بالمصادر الموجودة في المستودع مباشرة (مقبول تمامًا)"
+          fi
           if [ ! -f project.yml ]; then
             root=$(dirname "$(find . -maxdepth 3 -name project.yml | head -1)")
             if [ -n "$root" ] && [ "$root" != "." ]; then shopt -s dotglob; mv "$root"/* . ; rm -rf "$root"; fi
           fi
-          [ -f project.yml ] || { echo "::error::الحزمة غير سليمة (لا project.yml)"; exit 1; }
-          echo "✓ الحزمة فُكّت — $(find FieldwatchCore/Sources -name '*.swift' | wc -l) ملف نواة · scripts: $(ls scripts/*.sh 2>/dev/null | wc -l) سكربت"
+          [ -f project.yml ] || { echo "::error::لا project.yml — لا حزمة في الجذر ولا مصادر مستخرجة. ارفع fieldwatch-payload.zip أو محتواه."; ls -la; exit 1; }
+          [ -f FieldwatchCore/Package.swift ] || { echo "::error::لا FieldwatchCore/Package.swift"; exit 1; }
+          [ -f scripts/preflight.sh ] || { echo "::error::لا scripts/preflight.sh — الشجرة ناقصة"; exit 1; }
+          echo "✓ جاهز — الإصدار: $(sed -n 's/^الإصدار:[[:space:]]*//p' PAYLOAD-VERSION.txt 2>/dev/null | head -1)"
+          echo "   ملفات النواة: $(find FieldwatchCore/Sources -name '*.swift' | wc -l) · سكربتات: $(ls scripts/*.sh 2>/dev/null | wc -l)"
+          echo "   الـcommit: $(git log -1 --format='%h %ci %s' 2>/dev/null || echo '(بلا .git)')"
 
       - name: أحدث Xcode متاح
         run: |
