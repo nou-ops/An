@@ -1,0 +1,82 @@
+# XcodeGen spec — يولّد Fieldwatch.xcodeproj من هذا الملف (لا نحتفظ بـ pbxproj في المستودع).
+# الاستخدام على ماك:  brew install xcodegen && xcodegen generate
+name: Fieldwatch
+
+options:
+  bundleIdPrefix: app.fieldwatch
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  FieldwatchCore:
+    path: FieldwatchCore        # Swift Package محلي: منطق Fieldwatch المنقول
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"   # آمن على كل إصدارات Xcode (كودنا لا يحتاج وضع Swift 6)
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+
+targets:
+  Fieldwatch:
+    type: application
+    platform: iOS
+    sources:
+      - path: FieldwatchApp/Sources
+    dependencies:
+      - package: FieldwatchCore
+    info:
+      path: FieldwatchApp/Info.plist     # XcodeGen يكتب هذا الملف من الخصائص أدناه
+      properties:
+        CFBundleDisplayName: Fieldwatch
+        CFBundleShortVersionString: "1.1.17"
+        CFBundleVersion: "27"
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities: [bluetooth-le]
+        # نفس نصوص الإذن المطلوبة فعليًا على iOS (لا يوجد بديل لكثافة أندرويد)
+        NSBluetoothAlwaysUsageDescription: >-
+          يستمع Fieldwatch لإعلانات Bluetooth LE حولك ويعرضها لك فقط. لا يرسل شيئًا،
+          ولا يوجد خادم. البيانات تبقى على الجهاز حتى تصدّرها أنت.
+        NSBluetoothPeripheralUsageDescription: >-
+          يستمع Fieldwatch لإعلانات Bluetooth LE حولك ويعرضها لك فقط.
+        NSLocationWhenInUseUsageDescription: >-
+          لوسم الوقت والمكان على ما تسمعه (مثل أندرويد). الموقع يبقى على الجهاز.
+        NSLocationAlwaysAndWhenInUseUsageDescription: >-
+          لعمل المسح في الخلفية أثناء الجولات الطويلة.
+        # المسح في الخلفية: BLE فقط وعلى فترات متباعدة — لا يوجد مكافئ لـ
+        # Foreground Service + wake locks في أندرويد.
+        UIBackgroundModes: [bluetooth-central]
+    # فحص الحزمة قبل البناء: يسقط البناء فورًا برسالة واضحة إن كانت الحزمة قديمة
+    # أو ناقصة — بدل أن تظهر أخطاء مُصرِّف مضلِّلة في منتصف البناء.
+    preBuildScripts:
+      - name: فحص الحزمة (PREFLIGHT)
+        path: scripts/preflight.sh
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.fieldwatch.ios
+        ENABLE_USER_SCRIPT_SANDBOXING: NO   # ليكتب سكربت الفحص ملف السجل المؤقت
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: "1.1.17"
+        CURRENT_PROJECT_VERSION: "27"
+        # للبناء غير الموقّع في CI (انظر ios/scripts/build-unsigned-ipa.sh)
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+        # لتوقيع حقيقي: أزل الأسطر الثلاثة أعلاه وضع DEVELOPMENT_TEAM هنا.
+        DEVELOPMENT_TEAM: ""
+
+schemes:
+  Fieldwatch:
+    build:
+      targets:
+        Fieldwatch: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+    # اختبارات FieldwatchCore تُشغَّل مباشرة عبر SwiftPM (أسرع وبلا محاكي):
+    #     swift test --package-path FieldwatchCore
+    # ويمكن تشغيلها من Xcode عبر فتح FieldwatchCore/Package.swift.

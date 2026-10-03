@@ -1,0 +1,16 @@
+Fieldwatch iOS — سجل تحقق فعلي (Swift 6.0.3, لينكس)
+التاريخ: 2026-10-03 · بعد دمج PARITY-NEXT + إصلاح FIX-AD1/FIX-AD2
+
+$ swift test --package-path FieldwatchCore
+	 Executed 111 tests, with 0 failures (0 unexpected) in 1.128 (1.128) seconds
+Test Suite 'All tests' passed at 2026-10-03 10:24:38.995
+
+الخلاصة: 111 اختبار XCTest / 0 فشل.
+  • 41 منقولة أصلًا من Kotlin
+  • 20 لمحرّك التواقيع على الكتالوج الرسمي (244 توقيعًا / 6,962 قاعدة)
+  • 11 تكافؤ مفكّك حقول التواقيع (FIX-01..FIX-07)
+  • 10 تكافؤ المرشّحات
+  • 18 من حزمة FULL-PORT
+  • 4 من PARITY-NEXT (Geo + AdvPayloadDecoder)
+  • 7 جديدة: Tesla/Atrius + FastPairModels
+كذلك: 10/10 ملفات التطبيق تجتاز swiftc -parse

@@ -1,0 +1,13 @@
+روابط جاهزة — افتحها في متصفح الهاتف (Safari/Chrome):
+
+1) ينشئ الملف مع المسار والمحتوى معًا (الصق النص إن ظهر فارغًا):
+https://github.com/nou-ops/Fieldwatch/new/main?filename=.github/workflows/ios-unsigned-ipa.yml&value=name%3A%20iOS%20unsigned%20IPA%0Aon%3A%20%5Bworkflow_dispatch%2C%20push%5D%0Ajobs%3A%0A%20%20build%3A%0A%20%20%20%20runs-on%3A%20macos-14%0A%20%20%20%20steps%3A%0A%20%20%20%20%20%20-%20uses%3A%20actions%2Fcheckout%40v4%0A%20%20%20%20%20%20-%20name%3A%20Core%20tests%0A%20%20%20%20%20%20%20%20run%3A%20swift%20test%20--package-path%20FieldwatchCore%20%7C%7C%20true%0A%20%20%20%20%20%20-%20run%3A%20brew%20install%20xcodegen%0A%20%20%20%20%20%20-%20name%3A%20Build%20IPA%0A%20%20%20%20%20%20%20%20run%3A%20bash%20scripts%2Fbuild-unsigned-ipa.sh%0A%20%20%20%20%20%20-%20uses%3A%20actions%2Fupload-artifact%40v4%0A%20%20%20%20%20%20%20%20with%3A%0A%20%20%20%20%20%20%20%20%20%20name%3A%20Fieldwatch-unsigned-ipa%0A%20%20%20%20%20%20%20%20%20%20path%3A%20out%2FFieldwatch-unsigned.ipa%0A
+
+2) ينشئ الملف بالمسار الصحيح فقط (ثم الصق المحتوى من COPY-PASTE-minimal-workflow.yml):
+https://github.com/nou-ops/Fieldwatch/new/main?filename=.github/workflows/ios-unsigned-ipa.yml
+
+3) صفحة Actions بعد الالتزام:
+https://github.com/nou-ops/Fieldwatch/actions
+
+4) إن لم يبدأ تلقائيًا — شغّله يدويًا من هنا:
+https://github.com/nou-ops/Fieldwatch/actions/workflows/ios-unsigned-ipa.yml

@@ -1,0 +1,9 @@
+import Foundation
+
+public enum SitExport {
+    public static let csvHeader = "kind,mac,name,rssi,rssi_min,rssi_max,channel,frequency_mhz,randomized,hidden,first_seen,last_seen,hits,lat,lon,signatures"
+    public static func csv(_ devices:[Sighting], fleets:[Fleet]=[]) -> String { var out=csvHeader+"\n"; for d in devices.sorted(by:{$0.rssi>$1.rssi}) { let p=d.gpsTrail.max(by:{$0.rssi<$1.rssi}); let names=d.fleetIds.compactMap{ id in fleets.first{$0.id==id}?.name }.joined(separator:"; "); let row=[d.kind.rawValue,d.mac,d.displayName,String(d.rssi),String(d.rssiMin),String(d.rssiMax),String(d.channel),String(d.frequencyMhz),String(d.randomized),String(d.hiddenSsid),iso(d.firstSeen),iso(d.lastSeen),String(d.hitCount),p.map{String(format:"%.6f",$0.lat)} ?? "",p.map{String(format:"%.6f",$0.lon)} ?? "",names].map(escape).joined(separator:",");out += row+"\n" };return out }
+    public static func jsonl(_ devices:[Sighting], fleets:[Fleet]=[]) -> String { devices.map{ d in let p=d.gpsTrail.max(by:{$0.rssi<$1.rssi}); let obj:[String:Any] = ["kind":d.kind.rawValue,"mac":d.mac,"name":d.displayName,"rssi":d.rssi,"rssi_min":d.rssiMin,"rssi_max":d.rssiMax,"channel":d.channel,"frequency_mhz":d.frequencyMhz,"randomized":d.randomized,"hits":d.hitCount,"lat":p?.lat as Any,"lon":p?.lon as Any,"signatures":d.fleetIds.compactMap { id in fleets.first(where: { fleet in fleet.id == id })?.name }.joined(separator:"; ")]; let data=(try? JSONSerialization.data(withJSONObject:obj,options:[])) ?? Data();return String(data:data,encoding:.utf8) ?? "" }.joined(separator:"\n") }
+    private static func escape(_ s:String)->String { s.contains(",") || s.contains("\"") || s.contains("\n") ? "\""+s.replacingOccurrences(of:"\"",with:"\"\"")+"\"" : s }
+    private static func iso(_ ms:Int64)->String { ISO8601DateFormatter().string(from:Date(timeIntervalSince1970:Double(ms)/1000)) }
+}

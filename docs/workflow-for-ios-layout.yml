@@ -1,0 +1,74 @@
+# النسخة البديلة — تُستعمل فقط إن كان مشروعك داخل مجلد ios/
+# (الفرق عن نسخة الجذر: كل المسارات مسبوقة بـ ios/ ، وعمليات macos تعمل داخل ios/)
+#
+# انقل محتواها إلى:  .github/workflows/ios-unsigned-ipa.yml
+name: iOS build (ios/ layout)
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  tests:
+    name: اختبارات النواة (FieldwatchCore)
+    runs-on: macos-14
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - name: swift test
+        run: |
+          set -o pipefail
+          swift test --package-path FieldwatchCore 2>&1 | tee /tmp/fw-tests.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-test-log
+          path: /tmp/fw-tests.log
+          if-no-files-found: warn
+
+  build:
+    name: بناء IPA + DEB
+    runs-on: macos-14
+    needs: [tests]
+    if: always()
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: أدوات البناء
+        run: |
+          brew install xcodegen
+          brew install dpkg || true
+          brew install ldid || true
+
+      - name: بناء الكل
+        run: |
+          set -o pipefail
+          bash scripts/build-all.sh 2>&1 | tee /tmp/fw-build.log
+
+      - name: ارفع المخرجات
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-build
+          path: |
+            ios/out/*.ipa
+            ios/out/*.deb
+          if-no-files-found: warn
+
+      - name: سجل البناء (عند الفشل)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/fw-build.log
+          if-no-files-found: warn

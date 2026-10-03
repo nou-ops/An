@@ -1,0 +1,293 @@
+# ★ ملف سير مكتفٍ بذاته — IPA + DEB بلا حاجة لأي سكربت آخر في المستودع.
+#
+# انسخ محتوى هذا الملف كاملًا والصقه في:
+#     Add file → Create new file → اكتب في خانة الاسم:
+#         .github/workflows/ios-unsigned-ipa.yml
+#     (اكتب الشرطة المائلة بيدك — GitHub ينشئ المجلدات تلقائيًا)
+#
+# لماذا هذا الملف؟ لأنك على الهاتف، وإنشاء 8 ملفات سكربت يدويًا متعب.
+# هذا ملف واحد يُنتج كل شيء:
+#   Fieldwatch-unsigned.ipa        بلا صلاحيات  → تثبيت عادي/AppSync
+#   Fieldwatch-trollstore.ipa      بصلاحيات    → TrollStore يحفظها
+#   Fieldwatch-1.1.17-rootless.deb iphoneos-arm64 → /var/jb  (jailbreak حديث)
+#   Fieldwatch-1.1.17-rootful.deb  iphoneos-arm   → /        (jailbreak قديم)
+#
+# المتطلبات من مستودعك: project.yml + FieldwatchCore/ + FieldwatchApp/  (وهي موجودة عندك ✓)
+name: "iOS build (self-contained: IPA + DEB)"
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    name: اختبارات + بناء IPA + DEB
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: بصمة الحزمة المطبَّقة (تحقق فوري من السجل)
+        run: |
+          if [ -f PAYLOAD-VERSION.txt ]; then
+            echo "══════ بصمة الحزمة ══════"
+            cat PAYLOAD-VERSION.txt
+            echo "═════════════════════════"
+          else
+            echo "⚠️⚠️ لا يوجد PAYLOAD-VERSION.txt في المستودع ⇒ الحزمة قديمة (قبل إصلاح count) ⚠️⚠️"
+            echo "    ارفع fieldwatch-payload.zip الجديدة إلى جذر هذا المستودع ثم شغّل من جديد."
+          fi
+          echo "— الـcommit الذي يُبنى الآن (إن كان قديمًا فالحزمة قديمة) —"
+          git log -1 --format='%h %ci %s' 2>/dev/null || echo "(لا .git)"
+          if [ -f FieldwatchApp/Sources/FieldwatchStore.swift ]; then
+            echo "— السطور 114-118 من SignatureCandidates.swift (يجب أن ترى: usable.filter { … }.count) —"
+            sed -n '114,118p' FieldwatchCore/Sources/FieldwatchCore/SignatureCandidates.swift 2>/dev/null || echo "(الملف غير موجود)"
+            echo "— بصمة إصلاحات طبقة التطبيق —"
+            grep -n "hits: \$0.hitCount" FieldwatchApp/Sources/FieldwatchStore.swift 2>/dev/null || echo "⚠️ FieldwatchStore.swift قديم (لا يزال فيه hitCount: الوسم الخاطئ)"
+            grep -n "struct BleRow" FieldwatchApp/Sources/BleScanner.swift 2>/dev/null || echo "⚠️ BleScanner.swift قديم (لا يزال يعرّف Sighting محليًا)"
+            grep -n "extension FieldwatchCore.Sighting: Identifiable" FieldwatchApp/Sources/FieldwatchStore.swift 2>/dev/null || echo "⚠️ ملحق Identifiable غير موجود"
+          else
+            echo "ℹ️ المصادر لم تُفكّ بعد (الحزمة مرفوعة كملف zip) — الفحص الكامل يجري في خطوة PREFLIGHT بعد تجهيز المستودع."
+          fi
+
+      - name: اختيار أحدث Xcode متاح (Swift 6+)
+        run: |
+          for x in /Applications/Xcode_18*.app /Applications/Xcode_17*.app /Applications/Xcode_16*.app /Applications/Xcode.app; do
+            if [ -d "$x" ]; then sudo xcode-select -s "$x" 2>/dev/null && echo "✓ Xcode: $x" && break; fi
+          done
+          echo "── الإصدارات ──"
+          xcodebuild -version 2>/dev/null || echo "(xcodebuild غير متاح)"
+          swift --version 2>/dev/null || echo "(swift غير متاح)"
+
+      - name: تجهيز المستودع — فكّ أي حزمة مرفوعة + تشخيص واضح
+        run: |
+          # ── تجهيز المستودع: يفكّ أي حزمة مرفوعة، ويُسطّح المتداخلة، ويتوقف برسالة واضحة إن لم يجد النواة ──
+          set -e
+          echo "┌─ تشخيص المستودع ────────────────────────────"
+          echo "│ repo:   ${GITHUB_REPOSITORY:-محلي}"
+          echo "│ branch: ${GITHUB_REF_NAME:-محلي}"
+          echo "│ pwd:    $(pwd)"
+          echo "└─────────────────────────────────────────────"
+          ls -la
+
+          found=""
+          shopt -s nullglob
+          zips=( *.zip )
+          if [ ${#zips[@]} -gt 0 ]; then
+            for z in "${zips[@]}"; do
+              echo "📦 وجدت حزمة: $z — تُفكّ الآن"
+              rm -rf _pkg
+              unzip -o -q "$z" -d _pkg
+              # حزمة متداخلة (مثل payload/FieldwatchCore/...): نجد جذر المشروع ونُسطّحه
+              if [ ! -d FieldwatchCore ]; then
+                inner="$(find _pkg -maxdepth 4 -type d -name FieldwatchCore | head -1)"
+                if [ -n "$inner" ]; then
+                  root="$(dirname "$inner")"
+                  echo "↪ الحزمة متداخلة تحت: ${root#_pkg/} — تُسطَّح إلى الجذر"
+                  cp -a "$root"/. .
+                else
+                  cp -a _pkg/. .
+                fi
+              else
+                cp -a _pkg/. .
+              fi
+              rm -rf _pkg
+              found="$z"
+            done
+            rm -f "${zips[@]}"
+          else
+            echo "لا يوجد أي ملف .zip في جذر المستودع"
+          fi
+
+          echo "── المحتوى بعد التجهيز ──"
+          ls -la
+
+          if [ ! -d FieldwatchCore ] || [ ! -f FieldwatchCore/Package.swift ]; then
+            echo "::error title=الحزمة غير موجودة::لم أجد مجلد FieldwatchCore في جذر هذا المستودع."
+            echo ""
+            echo "════════════════════════════════════════════════════════"
+            echo " الحل: ارفع الملف fieldwatch-payload.zip إلى جذر هذا المستودع"
+            echo "      (نفس المستودع ${GITHUB_REPOSITORY:-هذا} الذي يعمل فيه هذا الـworkflow)"
+            echo " ثم أعد التشغيل. الحجم 581KB ويُفكّ تلقائيًا هنا."
+            echo "════════════════════════════════════════════════════════"
+            exit 1
+          fi
+          echo "✓ النواة جاهزة: FieldwatchCore/Package.swift"
+
+      - name: فحص الحزمة قبل البناء (PREFLIGHT)
+        run: |
+          if [ ! -f scripts/preflight.sh ]; then
+            echo "::error::scripts/preflight.sh غير موجود بعد فكّ الحزمة — الحزمة المرفوعة ناقصة أو قديمة جدًا."
+            exit 1
+          fi
+          bash scripts/preflight.sh
+      - name: الإصدارات والتحقق من الملفات الضرورية
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "── تحقق ──"
+          for p in project.yml FieldwatchCore/Package.swift FieldwatchApp/Sources/FieldwatchApp.swift; do
+            if [ -e "$p" ]; then echo "✓ $p"; else echo "✗ ناقص: $p"; fi
+          done
+          ls -la
+
+      - name: اختبارات النواة (111 اختبارًا)
+        continue-on-error: false
+        run: |
+          set -o pipefail
+          swift test --package-path FieldwatchCore 2>&1 | tee /tmp/fw-tests.log
+
+      - name: تثبيت الأدوات
+        run: |
+          brew install xcodegen
+          brew install ldid || true
+          brew install dpkg || true
+          command -v dpkg-deb && dpkg-deb --version | head -1 || echo "لا dpkg-deb: ستُبنى الـ IPA فقط"
+
+      - name: توليد مشروع Xcode
+        run: xcodegen generate
+
+      - name: بناء التطبيق (unsigned)
+        run: |
+          xcodebuild \
+            -project Fieldwatch.xcodeproj \
+            -scheme Fieldwatch \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: "تجهيز out/ — نسختان: عادية وموقّعة بالصلاحيات"
+        run: |
+          set -e
+          mkdir -p out
+          APP_SRC="build/Build/Products/Release-iphoneos/Fieldwatch.app"
+          [ -d "$APP_SRC" ] || { echo "!! لم يُبنَ التطبيق"; ls -R build/Build/Products 2>/dev/null | head -40; exit 1; }
+
+          rm -rf out/Fieldwatch.app out/signed
+          cp -R "$APP_SRC" out/Fieldwatch.app
+
+          # 1) IPA عادي (بلا صلاحيات)
+          rm -rf out/_w && mkdir -p out/_w/Payload
+          cp -R out/Fieldwatch.app out/_w/Payload/
+          ( cd out/_w && zip -qry ../Fieldwatch-unsigned.ipa Payload )
+          rm -rf out/_w
+
+          # 2) IPA موقّع بالصلاحيات (لـ TrollStore)
+          cp -R "$APP_SRC" out/signed-app
+          cat > /tmp/unsandbox.entitlements <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.private.security.no-sandbox</key><true/>
+              <key>com.apple.private.security.storage.AppDataContainers</key><true/>
+              <key>com.apple.developer.networking.multicast</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          EXEC="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' out/signed-app/Info.plist 2>/dev/null || echo Fieldwatch)"
+          if command -v ldid >/dev/null 2>&1; then
+            echo "==> ldid -S (صلاحيات no-sandbox)"
+            ldid -S/tmp/unsandbox.entitlements "out/signed-app/$EXEC"
+            ldid -e "out/signed-app/$EXEC" | head -20 || true
+          else
+            echo "!! ldid غير متاح — نسخة TrollStore ستكون بلا صلاحيات مضمّنة"
+          fi
+          rm -rf out/_w2 && mkdir -p out/_w2/Payload
+          cp -R out/signed-app out/_w2/Payload/Fieldwatch.app
+          ( cd out/_w2 && zip -qry ../Fieldwatch-trollstore.ipa Payload )
+          rm -rf out/_w2
+
+          ls -lh out/
+
+      - name: بناء حزم DEB (rootless + rootful)
+        run: |
+          set -e
+          if ! command -v dpkg-deb >/dev/null 2>&1; then echo "dpkg-deb غير متاح — تخطّي DEB"; exit 0; fi
+
+          cat > /tmp/mkdeb.sh <<'SH'
+          #!/usr/bin/env bash
+          # $1 variant(rootless|rootful) $2 architecture $3 prefix
+          set -e
+          VARIANT="$1"; ARCH="$2"; PREFIX="$3"
+          SRC="out/signed-app"
+          [ -d "$SRC" ] || SRC="out/Fieldwatch.app"
+          OUT="out/Fieldwatch-1.1.17-${VARIANT}.deb"
+          WORK="$(mktemp -d)"; ROOT="$WORK/pkgroot"
+          mkdir -p "$ROOT/DEBIAN" "$ROOT$PREFIX/Applications"
+          cp -R "$SRC" "$ROOT$PREFIX/Applications/Fieldwatch.app"
+          find "$ROOT" -name '.DS_Store' -delete 2>/dev/null || true
+          chmod -R go-w "$ROOT"; chmod 755 "$ROOT$PREFIX/Applications" "$ROOT$PREFIX/Applications/Fieldwatch.app"
+          KB="$(du -sk "$ROOT$PREFIX/Applications/Fieldwatch.app" | cut -f1)"
+          cat > "$ROOT/DEBIAN/control" <<CTRL
+          Package: app.fieldwatch.ios
+          Name: Fieldwatch
+          Version: 1.1.17
+          Architecture: $ARCH
+          Description: Fieldwatch 1.1.17 - passive Wi-Fi / BLE field viewer (iOS port). Private Wi-Fi scanning needs a jailbroken device.
+          Maintainer: nou-ops
+          Section: Applications
+          Priority: optional
+          Depends: firmware (>= 15.0)
+          Installed-Size: $KB
+          CTRL
+          cat > "$ROOT/DEBIAN/postinst" <<'POST'
+          #!/bin/sh
+          U="$(command -v uicache 2>/dev/null || true)"
+          [ -n "$U" ] || U="/var/jb/usr/bin/uicache"
+          [ -x "$U" ] && "$U" -a 2>/dev/null || true
+          echo "Fieldwatch installed. Open it and tap: Wi-Fi diagnostics (probe)"
+          exit 0
+          POST
+          cat > "$ROOT/DEBIAN/postrm" <<'POST2'
+          #!/bin/sh
+          U="$(command -v uicache 2>/dev/null || true)"
+          [ -n "$U" ] || U="/var/jb/usr/bin/uicache"
+          [ -x "$U" ] && "$U" -a 2>/dev/null || true
+          exit 0
+          POST2
+          chmod 755 "$ROOT/DEBIAN/postinst" "$ROOT/DEBIAN/postrm"
+          rm -f "$OUT"
+          dpkg-deb --root-owner-group -Zxz --build "$ROOT" "$OUT" >/dev/null 2>&1 \
+            || dpkg-deb --root-owner-group --build "$ROOT" "$OUT" >/dev/null 2>&1 \
+            || dpkg-deb --build "$ROOT" "$OUT" >/dev/null
+          echo "✓ $OUT ($ARCH · ${PREFIX:-/})"
+          SH
+          bash /tmp/mkdeb.sh rootless iphoneos-arm64 /var/jb
+          bash /tmp/mkdeb.sh rootful  iphoneos-arm  ""
+          ls -lh out/*.deb
+
+      - name: ملخص الناتج
+        if: always()
+        run: |
+          {
+            echo "## الناتج"
+            ls -lh out/*.ipa out/*.deb 2>/dev/null || ls -lh out/ 2>/dev/null || echo "لا ناتج"
+            echo
+            echo "| الملف | لمن |"
+            echo "|---|---|"
+            echo "| Fieldwatch-1.1.17-rootless.deb | jailbreak حديث (Dopamine/palera1n rootless) — الأفضل |"
+            echo "| Fieldwatch-1.1.17-rootful.deb | jailbreak قديم (checkra1n) |"
+            echo "| Fieldwatch-trollstore.ipa | TrollStore/AppSync — نقرة واحدة |"
+            echo "| Fieldwatch-unsigned.ipa | تثبيت عادي بلا صلاحيات |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ارفع كل المخرجات
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-build
+          path: |
+            out/*.ipa
+            out/*.deb
+            /tmp/fw-tests.log
+          if-no-files-found: warn
+
+      - name: سياق الفشل (إن فشل شيء)
+        if: failure()
+        run: |
+          echo "## فشل البناء" >> "$GITHUB_STEP_SUMMARY"
+          echo 'أرسل آخر 60 سطرًا من هذا السجل.' >> "$GITHUB_STEP_SUMMARY"
+          tail -60 /tmp/fw-build.log 2>/dev/null || true

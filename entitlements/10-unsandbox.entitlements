@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  الدرجة 2 — فتح الـ sandbox (الموصى بها عند الحاجة). هذا هو الافتراضي في البناء الآلي.
+
+  لماذا هذه بالذات؟ لأن الوصول إلى /System/Library/PrivateFrameworks/Apple80211
+  يحتاج تجاوز قواعد الـ sandbox. وثائق TrollStore توصي بـ no-sandbox تحديدًا لأنها
+  تُبقي حاوية التطبيق موجودة (عكس no-container) فتبقى الكتابة في ملفاتك سليمة.
+
+  ملاحظات مهمة من وثائق TrollStore:
+    • لو لم يصل التطبيق إلى حاويته الخاصة، أضف: com.apple.private.security.storage.AppDataContainers
+    • لا تضف platform-application إلا إذا فشل هذا (له آثار جانبية تُضيّق أجزاء من الـ sandbox).
+    • صلاحيات ممنوعة نهائيًا على iOS 15+ مع A12+ (تُسقط التطبيق عند الإقلاع):
+        com.apple.private.cs.debugger · dynamic-codesigning · com.apple.private.skip-library-validation
+
+  الاستخدام:  ldid -S10-unsandbox.entitlements Fieldwatch.app/Fieldwatch
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- تجاوز الـ sandbox مع إبقاء الحاوية -->
+    <key>com.apple.private.security.no-sandbox</key>
+    <true/>
+
+    <!-- الوصول إلى حاوية بيانات التطبيق نفسه بعد تجاوز الـ sandbox -->
+    <key>com.apple.private.security.storage.AppDataContainers</key>
+    <true/>
+
+    <!-- TAK / CoT: إرسال multicast UDP. أزلها إن لم تستعمل ATAK الآن. -->
+    <key>com.apple.developer.networking.multicast</key>
+    <true/>
+
+    <!-- ★ مسح Wi-Fi: wifid يتحقق من هذه الصلاحية بـ SecTaskCopyValueForEntitlement
+         قبل أن يقبل أي طلب مسح من MobileWiFi. بدونها يرجع الكائن أو يُرفض الطلب. -->
+    <key>com.apple.wifi.manager-access</key>
+    <true/>
+</dict>
+</plist>

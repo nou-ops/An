@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  الدرجة 3 — إضافة platform-application. آخر حل، وليس أول حل.
+
+  تحذير من وثائق TrollStore نفسها: platform-application له آثار جانبية —
+  أجزاء من الـ sandbox تصبح أضيق بعد إضافته (مثال: تحتاج صلاحية استثناء لكل
+  فئة IOKit تريدها). لذلك لا تستعمله إلا إذا فشل 10-unsandbox.
+
+  الدليل على أن السبب فعليًا صلاحيات: انظر ناتج زر «تشخيص Wi-Fi (probe)» في التطبيق —
+  إن ظهر isAvailable=false مع فشل dlopen/dlsym فهنا مكان التجربة التالية.
+
+  الاستخدام:  ldid -S20-platform.entitlements Fieldwatch.app/Fieldwatch
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>platform-application</key>
+    <true/>
+
+    <key>com.apple.private.security.no-sandbox</key>
+    <true/>
+
+    <key>com.apple.private.security.storage.AppDataContainers</key>
+    <true/>
+
+    <key>com.apple.developer.networking.multicast</key>
+    <true/>
+
+    <!-- منفذ sockets: يحتاجه بعض أدوات الشبكة في بيئة الـ jailbreak -->
+    <key>com.apple.private.network.socket-delegate</key>
+    <true/>
+
+    <!-- ★ مسح Wi-Fi — سبب وجود هذه النسخة أصلًا:
+         MobileWiFi (WiFiManagerClientCreate/ScanAsync) يتطلب هذه الصلاحية،
+         وiPad/iPhone الحديث يستعملها بدل Apple80211 المهجور. -->
+    <key>com.apple.wifi.manager-access</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,11 @@
+import XCTest
+@testable import FieldwatchCore
+
+final class LogReplayCandidatesTests: XCTestCase {
+    func wifi(_ mac:String,_ name:String,vendor:String?="Acme",ies:[String]=[])->LogRadio {LogRadio(kind:.wifi,mac:MacUtil.normalize(mac),name:name,vendor:vendor,vendorIeOuis:ies,randomized:MacUtil.isRandomized(mac),hiddenSsid:name.isEmpty,rssi:-40,firstSeen:1,lastSeen:1,hits:3,channel:1,frequencyMhz:2412)}
+    func ble(_ mac:String,_ name:String)->LogRadio {LogRadio(kind:.ble,mac:MacUtil.normalize(mac),name:name,randomized:MacUtil.isRandomized(mac),rssi:-50,firstSeen:1,lastSeen:1,hits:2)}
+    func testNameGlobAndHouseRules(){XCTAssertEqual(SignatureCandidates.nameGlobOf("H2O-047bcbd11400"),"H2O-????????????");XCTAssertEqual(SignatureCandidates.nameGlobOf("RG3100-7A21"),"RG3100*");XCTAssertEqual(SignatureCandidates.nameGlobOf("[fridge]_E30AJT5133207Z SJIT"),"[fridge]*");XCTAssertNil(SignatureCandidates.nameGlobOf("IonCannon"));XCTAssertTrue(SignatureCandidates.isHouseLikeName("Jameson"));XCTAssertTrue(SignatureCandidates.isHouseLikeName("LOB_Guest"));XCTAssertFalse(SignatureCandidates.isHouseLikeName("H2O-047bcbd11400"))}
+    func testCandidateClustersTwoRadios(){let a=wifi("00:11:22:33:44:55","H2O-047bcbd11400");let b=wifi("00:11:22:33:44:66","H2O-0a1c8e22b400");let r=SignatureCandidates.analyze([a,b],fleets:[]);XCTAssertEqual(r.families.count,1);XCTAssertEqual(r.families[0].distinctRadios,2);XCTAssertEqual(r.families[0].rules.first?.kind,.nameGlob)}
+    func testReplayAggregatesAndVendorIE(){let csv="timestamp,iso,kind,mac,name,rssi,channel,freq,oui,vendor,fleets,mfg,uuids,flags,raw,lat,lon,vendor_ie\n1,t,WIFI,00:11:22:33:44:55,H2O-047bcbd11400,-60,1,2412,00:11:22,Acme,,,,,,,\n2,t,WIFI,00:11:22:33:44:55,H2O-047bcbd11400,-50,1,2412,00:11:22,Acme,,,,,,,,C8:3A:6B";let r=LogReplay.parse(csv);XCTAssertEqual(r.count,1);XCTAssertEqual(r[0].hits,2);XCTAssertEqual(r[0].rssi,-50);XCTAssertTrue(r[0].vendorIeOuis.contains("C8:3A:6B"))}
+    func testReplayRoundTripRows(){let row="1,2026-08-31T12:00:00.000Z,WIFI,00:11:22:33:44:55,H2O-047bcbd11400,-50,1,2412,00:11:22,Acme,, ,,,RAW,40.0,-80.0,C8:3A:6B";let j=LogReplay.csvRowToJSON(row);XCTAssertNotNil(j);XCTAssertEqual(LogReplay.lineKind(j!,json:true),.wifi);let back=LogReplay.jsonRowToCSV(j!);XCTAssertNotNil(back);XCTAssertTrue(back!.contains("WIFI"))}
+}

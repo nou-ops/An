@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  الدرجة 1 — بلا أي صلاحيات خاصة. ابدأ من هنا دائمًا.
+
+  السبب: صلاحيات private ليست «مجانية» — أضِفها متى ما احتجتها فقط،
+  واختبر بعد كل إضافة. جرّب هذا أولًا على جهازك المكسور الحماية:
+  كثيرًا ما ينجح dlopen لـ Apple80211 على جهاز jailbreak بلا أي entitlement
+  لأن الـ jailbreak نفسه يخفّف التحقق.
+
+  الاستخدام:  ldid -S00-none.entitlements Fieldwatch.app/Fieldwatch
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+</dict>
+</plist>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fieldwatch ← iOS: هل يمكن تحويل الشيفرة إلى تطبيق IPA؟</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --line:#2b3341;
+    --txt:#e6edf3; --dim:#9aa7b4; --accent:#4ea1ff; --ok:#2ecc71; --warn:#f0b429; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Naskh Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif;
+    line-height:1.85; font-size:16.5px;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:28px 20px 80px}
+  header{
+    background:linear-gradient(135deg,#12253d 0%,#0d1117 60%);
+    border:1px solid var(--line); border-radius:16px; padding:26px 24px; margin-bottom:22px;
+  }
+  header h1{margin:0 0 6px; font-size:27px; line-height:1.4}
+  header p{margin:0; color:var(--dim); font-size:15px}
+  .pill{display:inline-block; background:#1f6feb22; border:1px solid #1f6feb66; color:#9ecbff;
+        border-radius:999px; padding:2px 11px; font-size:12.5px; margin-inline-start:8px; vertical-align:middle}
+  h2{font-size:21px; margin:34px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+  h3{font-size:17px; margin:22px 0 8px; color:#cfe3ff}
+  p,li{color:#d7e1ea}
+  ul,ol{padding-inline-start:22px}
+  code{background:#0b1220; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:14px; direction:ltr; display:inline-block}
+  pre{background:#0b1220; border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; direction:ltr; text-align:left; font-size:13.5px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin:14px 0}
+  .verdict{background:#0f2a1c; border:1px solid #2ecc7155; border-radius:14px; padding:18px 20px}
+  .verdict h2{margin-top:0; border:0; padding:0}
+  .no{background:#2a1416; border-color:#ff6b6b55}
+  .warnbox{background:#2a2312; border-color:#f0b42955}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:15px; background:var(--panel); border-radius:12px; overflow:hidden}
+  th,td{padding:10px 13px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top}
+  th{background:var(--panel2); color:#cfe3ff; font-weight:600; font-size:14.5px}
+  tr:last-child td{border-bottom:0}
+  td.num{font-variant-numeric:tabular-nums; white-space:nowrap; direction:ltr; text-align:left}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px}
+  .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .kpi b{display:block; font-size:23px; color:#fff; font-variant-numeric:tabular-nums}
+  .kpi span{color:var(--dim); font-size:13.5px}
+  .tag{display:inline-block; border-radius:6px; padding:1px 8px; font-size:12.5px; border:1px solid}
+  .t-ok{color:var(--ok); border-color:#2ecc7155; background:#2ecc7115}
+  .t-warn{color:var(--warn); border-color:#f0b42955; background:#f0b42915}
+  .t-bad{color:var(--bad); border-color:#ff6b6b55; background:#ff6b6b15}
+  .quote{border-inline-start:3px solid var(--accent); padding:6px 14px; color:var(--dim); background:#0f1725; border-radius:0 10px 10px 0; margin:12px 0}
+  footer{margin-top:44px; color:var(--dim); font-size:14px; border-top:1px solid var(--line); padding-top:16px}
+  .steps{counter-reset:s; list-style:none; padding:0}
+  .steps li{counter-increment:s; position:relative; padding-inline-start:44px; margin:12px 0}
+  .steps li::before{content:counter(s); position:absolute; inset-inline-start:0; top:2px; width:30px; height:30px; border-radius:50%;
+    background:#1f6feb22; border:1px solid #1f6feb66; color:#9ecbff; display:flex; align-items:center; justify-content:center; font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>تحويل Fieldwatch إلى تطبيق iOS / ملف IPA<span class="pill">1.1.17 · Kotlin · MIT</span></h1>
+  <p>تحليل مبني على الشيفرة التي أرسلتها فعلًا: 173 ملفًا، 40 ملف <code>domain</code>، 384 اختبارًا في <code>app/src/test</code>، APK في <code>dist/</code>، و مفتاح الـ handoff الذي يطلب نقلًا إلى Swift.</p>
+</header>
+
+<div class="verdict">
+  <h2>الجواب المباشر</h2>
+  <ol>
+    <li><b>لا يوجد تحويل آلي APK → IPA.</b> الـ APK يحتوي Dex/ART bytecode، وiOS يشغّل Mach-O + Swift/Objective-C. لا توجد أداة تحوّل بينهما، وهذا صحيح تمامًا كما هو مكتوب في ملف الـ handoff عندك.</li>
+    <li><b>لكن نعم، يمكن بناء تطبيق iOS من نفس هذا المصدر</b> — بطريقتين: إعادة استخدام منطق Kotlin عبر <b>Kotlin Multiplatform</b> (الأسرع والأدق)، أو إعادة كتابته بـ <b>Swift</b> كما يطلب الـ handoff (أنظف لكن أطول).</li>
+    <li><b>محدَّث بعد جوابك:</b> اخترت <b>جهاز Jailbreak</b> وتركت Wi‑Fi لتقديري ⇒ المسار الموصى به صار <b>KMP لإعادة استعمال المنطق</b>، ومسح Wi‑Fi <b>يعود ممكنًا</b> عبر private APIs معزولة خلف <code>WiFiBackend</code>. التفاصيل في §7–§9، والكود مكتوب فعلًا في <code>ios/</code>.</li>
+    <li><b>ملف IPA جاهز لا يمكن أن يخرج من هذه الجلسة</b>: بناؤه يحتاج macOS + Xcode + توقيع (Apple ID على الأقل). بيئتي هنا لينكس، لا يوجد فيها حتى مترجم Swift. بدلًا من ذلك جهّزت لك <b>كودًا منقولًا فعليًا + خط بناء CI يُنتج IPA</b> (انظر §6).</li>
+  </ol>
+</div>
+
+<div class="card warnbox">
+  <h3>وأهم من كل هذا: العقبة ليست اللغة</h3>
+  <p>قيمة Fieldwatch على أندرويد نصفها في <b>مسح Wi‑Fi المحيط</b> (SSID، BSSID، قوة الإشارة، raw IEs، تحليل الـ vendor IEs بما فيها <code>WifiIeParser.kt</code>). نظام iOS <b>لا يعطي هذه القدرة لأي تطبيق</b>. حتى لو نقلنا كل سطر بشكل مثالي، نسخة iOS ستكون <span class="tag t-bad">BLE فقط</span> إلا إذا لجأت إلى Jailbreak/private APIs أو راديو خارجي.</p>
+</div>
+
+<h2>1) ماذا يوجد في مصدرك بالضبط (أرقام حقيقية من الملف)</h2>
+<div class="grid">
+  <div class="kpi"><b>18,233</b><span>سطر منطق domain (40 ملفًا)</span></div>
+  <div class="kpi"><b>12,501</b><span>سطر واجهة Compose (28 ملفًا)</span></div>
+  <div class="kpi"><b>7,675</b><span>سطر اختبارات (384 حالة اختبار)</span></div>
+  <div class="kpi"><b>4,159</b><span>سطر طبقة data (تخزين/PDF/سجلات)</span></div>
+</div>
+<p>وهذا التصنيف هو الخبر السار: طبقة الـ <code>domain</code> شبه خالصة Kotlin. لم أجد فيها سوى:</p>
+<ul>
+  <li><b>3 ملفات فقط</b> تلمس أندرويد أو org.json: <code>LogReplay.kt</code>، <code>RadioDb.kt</code>، <code>SitExport.kt</code>.</li>
+  <li><b>17 ملفًا من 40</b> تستعمل مكتبات JVM بحتة (<code>java.util.Locale/Date/TimeZone/UUID</code>، <code>java.text.SimpleDateFormat</code>، <code>java.nio</code>). أي أن <b>23 ملفًا</b> تعمل كما هي حرفيًا على Kotlin/Native بلا تعديل.</li>
+  <li>الراديو (<code>radio/</code>) هو الجزء المُشبَع بأندرويد فعلًا: BluetoothLeScanner، ScanRecord، ScanResult.informationElements، WifiManager، Foreground Service، NotificationManager.</li>
+</ul>
+
+<h2>2) الجدول الذي يحكم المشروع: ما يعمل على iOS؟</h2>
+<table>
+  <thead><tr><th>قدرة في Fieldwatch (أندرويد)</th><th>على iOS</th><th>التفصيل</th></tr></thead>
+  <tbody>
+    <tr><td>مسح BLE، فك الإعلان، BLE Remote ID (FFFA)، Fast Pair، manufacturer/service data</td><td><span class="tag t-ok">ممكن</span></td><td>CoreBluetooth يعطي الإعلان كقاموس: manufacturer data، service data، txPower، flags، local name. نفس مسار <code>OpenDroneId.fromFacts</code>.</td></tr>
+    <tr><td>MAC address لكل جهاز</td><td><span class="tag t-bad">ممنوع</span></td><td>iOS يعطي <code>CBPeripheral.identifier</code> — معرّف خاص بتطبيقك على جهازك، وليس عنوان الجهاز. أدوات «تتبع» أندرويد تُبنى كثيرًا على MAC؛ هنا يجب أن تبني الهوية على ما يعلنه الجهاز (UUID خدمة، بيانات مصنّع، UAS id).</td></tr>
+    <tr><td>مسح Wi‑Fi المحيط + raw IEs + تحليل vendor IE</td><td><span class="tag t-bad">غير متاح</span></td><td>لا <code>ScanResult</code>، لا <code>informationElements</code>. <code>WifiRadio.kt</code> و<code>WifiIeParser.kt</code> بلا مقابل. <code>NEHotspotHelper</code> يحتاج entitlement خاصًا من آبل ولا يمنح مسح APs.</td></tr>
+    <tr><td>Wi‑Fi Remote ID (vendor IE FA:0B:BC)</td><td><span class="tag t-bad">غير متاح</span></td><td>لأنه يعتمد على الـ IE أصلًا. BLE FFFA يعمل، Wi‑Fi لا. (تنبيه: هذا يعني أن دعم DJI Wi‑Fi الذي جاء في 1.1.15 لن يوجد على iOS.)</td></tr>
+    <tr><td>خدمة أمامية تعمل ساعات والمسح المستمر في الخلفية</td><td><span class="tag t-warn">مقيّد</span></td><td>لا Foreground Service ولا wake locks. <code>bluetooth-central</code> فقط، وبلا <code>AllowDuplicates</code> فعليًا في الخلفية، ومدة الجلسة تُحدّها آبل. تطبيق يبقى مفتوحًا على الشاشة يعمل جيدًا.</td></tr>
+    <tr><td>إرسال TAK / CoT عبر multicast UDP</td><td><span class="tag t-warn">يحتاج entitlement</span></td><td><code>com.apple.developer.networking.multicast</code> — يُطلب من حساب المطوّر، وليس متاحًا للتوقيع المجاني.</td></tr>
+    <tr><td>سجلات، تصدير CSV/GPX/KML/WiGLE، PDF، كتالوج التواقيع، الفلاتر، كشف المسارات، Debrief/Compare</td><td><span class="tag t-ok">ممكن</span></td><td>كلها منطق خالص + ملفات. تُستبدل <code>File(context.filesDir)</code> بـ FileManager/Documents، و<code>SharedPreferences/ConfigStore</code> بـ UserDefaults/ملف JSON. الـ PDF: <code>DebriefPdf.kt</code> يستخدم android.graphics.pdf + Icons compose → يُعاد بناؤه بـ PDFKit/UIGraphicsPDFRenderer.</td></tr>
+    <tr><td>المشاركة عبر Share sheet / FileProvider</td><td><span class="tag t-ok">ممكن</span></td><td>UIActivityViewController + ملفات في مجلد الـ app.</td></tr>
+    <tr><td>الإشعارات والاهتزاز عند «Extra attention»</td><td><span class="tag t-ok">ممكن</span></td><td>UserNotifications + CoreHaptics، لكن سلوك الخلفية أضيق.</td></tr>
+  </tbody>
+</table>
+
+<h2>3) ثلاثة مسارات عملية (وكم يستغرق كل واحد)</h2>
+<table>
+  <thead><tr><th>المسار</th><th>ماذا يعني</th><th>ما يُعاد كتابته</th><th>تقدير الوقت (بدوام جزئي)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>أ — Kotlin Multiplatform</b><br><span class="tag t-ok">توصيتي</span></td>
+      <td>ينتقل <code>domain/</code> كما هو إلى <code>commonMain</code> ويُبنى كإطار Framework يُستدعى من Swift. تحافظ على 384 اختبارًا وتشغّلها على iOS.</td>
+      <td>17 ملفًا: استبدال java.util/java.text بـ kotlinx-datetime + تنسيق يدوي (أو expect/actual). 3 ملفات Context/org.json. الواجهة SwiftUI بالكامل. الراديو CoreBluetooth.</td>
+      <td><b>2–5 أيام</b> لتهيئة الـ domain ونجاح الاختبارات، ثم <b>3–6 أسابيع</b> لواجهة جزئية مفيدة (Live + تفاصيل + فلاتر + إعدادات)</td>
+    </tr>
+    <tr>
+      <td><b>ب — إعادة كتابة Swift كاملة</b><br><span class="tag t-warn">ما يطلبه الـ handoff</span></td>
+      <td>نقل يدوي لكل سطر: Models، Rssi، PayloadLocation، OpenDroneId، SignatureEngine/Candidates، AdvPayloadDecoder، FilterEngine، CodDecoder، Debrief… ثم Compose → SwiftUI.</td>
+      <td>كل شيء: 18.2k سطر منطق + 12.5k سطر واجهة + 384 اختبارًا إلى XCTest.</td>
+      <td><b>3–6 أشهر</b>، مع خطر «انحراف الصيغة» (Swift يختلف عن Kotlin بعد أول تعديل لاحق)</td>
+    </tr>
+    <tr>
+      <td><b>ج — نسخة iOS مصغّرة (BLE فقط)</b></td>
+      <td>لا تحاول تكافؤ الميزات: مراقب BLE + Remote ID + سجل + تصدير. تبدأ من الصفر بـ Swift وتتجاهل Wi‑Fi والـ signature library الموسّعة.</td>
+      <td>قليل جدًا — تطبيق صغير قابل للصيانة.</td>
+      <td><b>أسبوع–أسبوعان</b> لنسخة تعمل على جهازك فعليًا</td>
+    </tr>
+    <tr>
+      <td>ملحق: Jailbreak / Private APIs</td>
+      <td>الوحيد الذي قد يستعيد مسح Wi‑Fi. مذكور في الـ handoff كـ <code>JailbreakBackend</code> معزولًا.</td>
+      <td>—</td>
+      <td>غير مستقر، مرتبط بإصدار iOS محدد، <b>لا يصلح للتوزيع العام ولا لمتجر آبل</b>. لا أضعه كأساس.</td>
+    </tr>
+    <tr>
+      <td>ملحق: راديو خارجي (ESP32/nRF عبر BLE)</td>
+      <td>يعيد لك Wi‑Fi بشكل شرعي: الجهاز الصغير يمسح ويرسل النتائج إلى التطبيق. وهو ما يسمّيه الـ handoff <code>ExternalRadioBackend</code>.</td>
+      <td>فيرموير + بروتوكول على BLE.</td>
+      <td>مشروع موازٍ صغير، لكنه الحل الحقيقي الوحيد لـ Wi‑Fi على iOS</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="quote">
+  ملاحظة على الـ handoff: هو يمنع «APK → IPA» وهذا صحيح، لكنه استنتج منها أن السبيل الوحيد هو إعادة الكتابة بـ Swift. هذا غير دقيق تقنيًا: Kotlin/Native يُصرَّف إلى إطار iOS أصلي بلا JVM ولا dex. الاختيار بين (أ) و(ب) هو قرارك أنت، وليس قيدًا تقنيًا.
+</div>
+
+<h2>4) كيف يُنتج ملف IPA فعليًا</h2>
+<ol class="steps">
+  <li><b>ترجمة المشروع إلى iOS</b> (المسار أ أو ب أو ج) → <code>Fieldwatch.xcodeproj</code> + target تطبيق.</li>
+  <li><b>البناء (Build)</b>: يحتاج macOS + Xcode. بدون ماك محلي يوجد حلّان: منصة macOS runner مجانية من GitHub Actions (المستودعات العامة مجانًا)، أو خدمة Mac سحابية بالساعة.</li>
+  <li><b>الأرشفة (Archive)</b>: <code>xcodebuild archive</code> ينتج <code>Fieldwatch.xcarchive</code>.</li>
+  <li><b>التغليف (Package)</b>: مجلد <code>Payload/Fieldwatch.app</code> يُضغط إلى ZIP ويُسمّى <code>.ipa</code>. هذا ما تفعله السكربتات في <code>ios/</code> عندك الآن. لاحظ: <b>IPA غير موقّع لن يُثبَّت</b> — إنه خطوة تحقق ولن تمريره لاحقًا للتوقيع.</li>
+  <li><b>التوقيع (Sign)</b> ثم التثبيت: انظر الجدول التالي.</li>
+</ol>
+
+<table>
+  <thead><tr><th>طريق التوقيع</th><th>المدة قبل إعادة التثبيت</th><th>التكلفة</th><th>يحتاج ماك؟</th><th>مناسب لك إذا…</th></tr></thead>
+  <tbody>
+    <tr><td>Xcode + Apple ID مجاني</td><td>7 أيام</td><td>0</td><td>نعم</td><td>عندك ماك وتجرّب محليًا</td></tr>
+    <tr><td>Sideloadly / AltStore + Apple ID مجاني</td><td>7 أيام</td><td>0</td><td><b>لا (ويندوز)</b></td><td>تريد تثبيت IPA مبني من CI على iPhone بـ ويندوز فقط — وهذا أقصر طريق لك بدون ماك</td></tr>
+    <tr><td>حساب Apple Developer</td><td>سنة</td><td>99$/سنة</td><td>نعم للبناء (أو CI)</td><td>تريد جهازًا يعمل سنة كاملة + صلاحية multicast + توزيع محدود</td></tr>
+    <tr><td>TestFlight / App Store</td><td>دائم</td><td>99$/سنة</td><td>نعم (أو CI)</td><td>تريد أن ينزّله أي شخص. توقّع مراجعة صارمة لتطبيق يفحص محيطك بالراديو</td></tr>
+    <tr><td>Enterprise / Ad Hoc جماعي</td><td>سنة</td><td>299$</td><td>نعم</td><td>فريق داخلي فقط — نشر IPA علنًا بهذه الشهادات يخالف اتفاقية آبل</td></tr>
+  </tbody>
+</table>
+
+<h2>5) ملاحظات ترخيص وحقوق (مهمة قبل النشر العام)</h2>
+<ul>
+  <li><b>الشيفرة MIT</b> © Off Grid Pete LLC — تسمح بالنسخة المشتقة، بشرط حفظ نص الترخيص والإشعار.</li>
+  <li><b>لكن جداول الأرقام المخصّصة ليست MIT</b>: <code>assets/lookups/radiodb.bin</code> و<code>ApVendorOuis.kt</code> مأخوذة من IEEE Registration Authority و Bluetooth SIG — وتخضع لشروط جهتَيهما (ملف NOTICE يقول ذلك صراحة). لا تستخدم مكتبة أندرويد الحالية لمكتبة Kotlin/JS/iOS جديدة بلا إعادة النظر في هذا.</li>
+  <li><b>أسماء Fast Pair</b> في <code>FastPairModels.kt</code> غير مغطاة بمنحة MIT أصلًا (نص NOTICE).</li>
+  <li>لو ستنشر نسخة iOS، أضف <code>NOTICE</code> مكافئًا واذكر أن الأصل من Off Grid Pete LLC، وأنت مسؤول عن أي استعمال ميداني/قانوني (نفس ما يقوله manual الأصلي).</li>
+</ul>
+
+<h2>6) ما جهّزته لك في هذا الـ workspace الآن</h2>
+<p>لم أكتفِ بالتحليل — نقلت فعليًا نواة المشروع وبنيت خط البناء. كل الملفات في مجلد <code>ios/</code>:</p>
+<table>
+  <thead><tr><th>الملف</th><th>ما هو</th><th>الحالة</th></tr></thead>
+  <tbody>
+    <tr><td class="num">ios/FieldwatchCore/Sources/FieldwatchCore/OpenDroneId.swift</td><td>نقل حرفي لـ <code>OpenDroneId.kt</code>: BLE FFFA + Wi‑Fi FA:0B:BC type 0x0D + message pack (nibble 0xF) + إعادة التأطير كـ BLE + heading/EW + speed mult</td><td><span class="tag t-ok">مكتوب سطرًا بسطر مقابل الأصل</span></td></tr>
+    <tr><td class="num">…/PayloadLocation.swift</td><td>الحقول + <code>pin()</code> + <code>mergeSticky()</code> + <code>validCoord()</code> بنفس الشروط</td><td><span class="tag t-ok">مطابق</span></td></tr>
+    <tr><td class="num">…/Rssi.swift و …/Geo.swift</td><td><code>Rssi.kt</code> كاملًا، و<code>meters/pathLengthM/spanM/cellKey</code> من <code>Geo.kt</code></td><td><span class="tag t-ok">مطابق</span></td></tr>
+    <tr><td class="num">…/Models.swift</td><td>شريحة Models + RadioFacts + مساعدات hex (<code>toHexUpper</code>)</td><td><span class="tag t-warn">جزئي — الحقول الناقصة معلَّمة داخل الملف</span></td></tr>
+    <tr><td class="num">ios/FieldwatchCore/Tests/…</td><td>41 اختبار XCTest منقولة، منها الاختبارات الأربعة من <code>OpenDroneIdTest.kt</code> مع حزمة DJI الحقيقية من 28 Sep 2026 وقيم opLat/opLon</td><td><span class="tag t-warn">جاهزة للتشغيل — تحتاج <code>swift test</code> على ماك</span></td></tr>
+    <tr><td class="num">…/WifiIeParser.swift</td><td>نقل 1:1 لدالة <code>parseIes</code> من <code>WifiIeParser.kt</code>: تفكيك الـ IE الخام إلى rates / security / vendorIes / channelFromDs — وهذا بالضبط ما يجعل <b>Wi‑Fi Remote ID ممكنًا على iOS مكسور الحماية</b></td><td><span class="tag t-ok">منقول + 10 اختبارات + اختبار End‑to‑End</span></td></tr>
+    <tr><td class="num">…/CodDecoder.swift · RadarPlot.swift · FilterEngine.swift · CoTravel.swift · FastPair.swift · Models.swift</td><td><b>الدفعة الثانية:</b> نقل 1:1 لمنطق فك Class of Device، وتحويل الرادار، ومحرّك التصفية كاملًا (AND/OR + الشرائح الست)، والمرافقة الحية، و<code>Sighting</code> الكامل مع <code>FilterState</code> و<code>SignatureClass</code> (21 قيمة)</td><td><span class="tag t-ok">منقول + 17 اختبارًا جديدًا (المجموع 41)</span></td></tr>
+    <tr><td class="num">ios/FieldwatchApp/Sources/WiFiBackend*.swift</td><td>طبقة Wi‑Fi المعزولة كما يشترط الـ handoff: العقد <code>WiFiBackend</code> + <code>iOSNativeBackend</code> (بلا مسح) + <code>JailbreakBackend</code> (dlopen → Apple80211 + <code>probe()</code> للتشخيص على الجهاز) + الجسر إلى <code>RadioFacts</code></td><td><span class="tag t-warn">يُصرَّف في Xcode · الرموز الخاصة تُتحقَّق على جهازك</span></td></tr>
+    <tr><td class="num">ios/JAILBREAK-AR.md + Fieldwatch-Jailbreak.entitlements</td><td>خطة التثبيت الدائم بلا حساب آبل ولا ماك (TrollStore / AppSync / ldid) + قالب entitlements</td><td><span class="tag t-ok">جاهز</span></td></tr>
+    <tr><td class="num">ios/FieldwatchApp/…</td><td>تطبيق SwiftUI مصغّر: CoreBluetooth يعبّئ RadioFacts من الإعلان ويستدعي <code>OpenDroneId.fromFacts</code> — إثبات أن المسار يعمل</td><td><span class="tag t-warn">يُبنى في Xcode (لم يُصرَّف بعد)</span></td></tr>
+    <tr><td class="num">ios/project.yml + scripts/build-unsigned-ipa.sh + .github/workflows/ios-unsigned-ipa.yml</td><td>مواصفة XcodeGen، سكربت ينتج <code>Fieldwatch-unsigned.ipa</code>، وسير CI على منصة macOS runner يبني الملف ويُخرجه كـ artifact</td><td><span class="tag t-ok">جاهز للاستخدام</span></td></tr>
+  </tbody>
+</table>
+
+<div class="card">
+  <h3>بصراحة تامة عن درجة التحقق</h3>
+  <p>لا يوجد Swift ولا Xcode في بيئتي (لينكس). لذلك: <b>ما هو مؤكَّد</b> = النقل يطابق Kotlin سطرًا بسطر، والاختبارات منقولة كما هي. <b>ما لم يُؤكَّد بعد</b> = أن الكود يُصرَّف بلا أخطاء، وأن 13 اختبارًا تمر. أول <code>swift test</code> على ماك (أو في الـ CI) هو الحكم. الـ handoff يمنع صراحةً ادعاء «95% منقول» عندما لا يكون الكود موجودًا ومُصرَّفًا — لذا لن أقول ذلك.</p>
+</div>
+
+<h2>7) قرارك: جهاز Jailbreak — ماذا يتغيّر عمليًا</h2>
+<table>
+  <thead><tr><th>البند</th><th>جهاز عادي</th><th>جهازك (Jailbreak)</th></tr></thead>
+  <tbody>
+    <tr><td>مسح Wi‑Fi المحيط</td><td>مستحيل — آبل لا تسمح لأي تطبيق</td><td><b>ممكن</b> عبر <code>Apple80211</code> خلف <code>WiFiBackend</code></td></tr>
+    <tr><td>Wi‑Fi Remote ID (FA:0B:BC / 0x0D)</td><td>مستحيل</td><td><b>ممكن</b> — نفس مسار أندرويد بالحرف بعد فك الـ IE</td></tr>
+    <tr><td>التثبيت والتوقيع</td><td>Apple ID مجاني (7 أيام) أو 99$/سنة</td><td><b>دائم وبلا حساب</b>: TrollStore (مثالي) أو AppSync / ldid — ولا حاجة إلى ماك</td></tr>
+    <tr><td>TAK / CoT (multicast)</td><td>يحتاج موافقة آبل</td><td>entitlement تُضيفه بنفسك</td></tr>
+    <tr><td>المسح في الخلفية</td><td>مقيّد بشدة</td><td>قابل للتجاوز (helper/entitlements) لكن يزيد الهشاشة</td></tr>
+    <tr><td>متجر آبل</td><td>ممكن نظريًا</td><td>خارج النطاق تمامًا</td></tr>
+    <tr><td>الاستقرار عبر تحديثات iOS</td><td>مرتفع</td><td><span class="tag t-warn">هشّ</span> — لا تحدّث iOS قبل التحقق، وثبّت إصدارًا تعرف أنه يعمل</td></tr>
+  </tbody>
+</table>
+
+<h2>8) المسارات مرتّبة من جديد: كم سطرًا يمكن إنقاذه فعلًا؟</h2>
+<p>الـ handoff يفترض أن اللغة عائق، لكن الحساب الحقيقي هو: <b>كم سطرًا أعيد استعماله؟</b> بعد قرارك (Jailbreak) صار Wi‑Fi ممكنًا، فبقي السؤال محصورًا في المنطق والواجهة:</p>
+<table>
+  <thead><tr><th>المسار</th><th>يُعاد استعماله</th><th>يُعاد كتابته</th><th>التقدير</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>KMP + Compose Multiplatform</b><br><span class="tag t-ok">أكبر مكسب</span></td>
+      <td>المنطق كله تقريبًا (<span class="num">18.2k</span> سطر) + الواجهة (<span class="num">12.5k</span> سطر Compose) مع تعديلات روتينية: إزالة Context/Intent/FileProvider/Bitmap، واستبدال طبقة PDF (<code>android.graphics.pdf</code> → PDFKit)</td>
+      <td>طبقة المنصة فقط: CoreBluetooth + WiFiBackend (جاهزة عندك الآن) + تخزين/مشاركة/إشعارات ≈ <span class="num">1.5–2k</span> سطر</td>
+      <td><b>4–8 أسابيع</b> لنسخة قريبة من التكافؤ</td>
+    </tr>
+    <tr>
+      <td><b>KMP + SwiftUI</b></td>
+      <td>المنطق (18.2k) و384 اختبارًا — الواجهة لا</td>
+      <td>الواجهة كاملة (12.5k Compose → SwiftUI) بمظهر iOS أصلي</td>
+      <td><b>6–10 أسابيع</b></td>
+    </tr>
+    <tr>
+      <td><b>Swift كامل</b> (ما يطلبه الـ handoff)</td>
+      <td>لا شيء — إعادة صياغة يدوية</td>
+      <td>≈ <span class="num">30k</span> سطر + 384 اختبارًا</td>
+      <td><b>3–6 أشهر</b> + خطر انحراف عن الأصل</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="card warnbox">
+  <h3>توصيتي الصريحة</h3>
+  <p><b>Kotlin Multiplatform للمنطق في كل الحالات</b> — لا يوجد سبب منطقي لإعادة كتابة 18,233 سطرًا و384 اختبارًا بـ Swift فقط لتغيير اللغة. ثم اختر الواجهة حسب هدفك:</p>
+  <ul>
+    <li><b>تريد نفس التطبيق بميزاته وشكله؟</b> ⇒ Compose Multiplatform (أعلى إعادة استعمال).</li>
+    <li><b>تريد تطبيق iOS أنيقًا يشعر بأنه أصلي وخفيف؟</b> ⇒ SwiftUI، وتبني الواجهة تدريجيًا.</li>
+  </ul>
+  <p>الكود الذي في <code>ios/</code> الآن يخدم الحالتين: طبقة المنصة (BLE + Wi‑Fi Jailbreak + الجسر إلى <code>RadioFacts</code>) تُكتب بـ Swift على أي حال، والـ <code>FieldwatchCore</code> Swift يبقى خيارًا موازيًا يعمل بالتوازي مع الخطة.</p>
+</div>
+
+<h2>9) التشغيل على جهازك: بلا حساب آبل وبلا ماك</h2>
+<ol class="steps">
+  <li><b>ابنِ على CI</b>: شغّل الـ workflow المرفق (Actions ← iOS unsigned IPA ← Run workflow) ⇒ تحصل على <code>Fieldwatch-unsigned.ipa</code> كـ artifact (منصة macOS runner مجانية للمستودعات العامة).</li>
+  <li><b>ثبّت</b>: TrollStore (الأفضل إن كان إصدار iOS مدعومًا — تثبيت دائم بلا شهادة) أو AppSync Unified، أو توقيع على الجهاز بـ <code>ldid</code>/SignTools.</li>
+  <li><b>شغّل <code>probe()</code></b> مرة واحدة وانسخ الناتج: يخبرك هل حُمّلت مكتبة <code>Apple80211</code> ومن أي مسار، وهل نجح المسح، و<b>ما أسماء المفاتيح الفعلية</b> في نتائج المسح على إصدار iOS عندك — هناك نضبط مفتاح الـ IE بدقة.</li>
+  <li><b>لو منع الـ sandbox الوصول</b>: ابدأ من القالب <code>Fieldwatch-Jailbreak.entitlements</code> فارغًا، وأضف entitlement واحدًا في كل مرة مع اختبار بعده.</li>
+  <li><b>لو فشلت <code>Apple80211</code> كليًا</b>: بديل <code>MobileWiFi.framework</code> بنفس البروتوكول — غيّر <code>requestScan</code> فقط، ولن يتغيّر سطر واحد في بقية التطبيق.</li>
+</ol>
+<p class="quote">كل هذا مسؤوليتك: جهاز مكسور الحماية، private APIs غير موثّقة، ولا تحديث iOS قبل التحقق — والنسخة لن تدخل متجر آبل.</p>
+
+<h2>10) ماذا بعد؟</h2>
+<ol class="steps">
+  <li><b>تحقق أولًا (أهم خطوة)</b>: ابنِ ما هو موجود على CI وراجع مخرجات <code>swift test</code> (24 اختبارًا يجب أن تمر) — هكذا نعرف أن النواة المنقولة سليمة قبل أن نبني عليها.</li>
+  <li><b>ثم أقرر معي المسار</b>: إن قلت «KMP + Compose Multiplatform» أبدأ بتقسيم <code>domain/</code> إلى <code>commonMain</code> وإصلاح الـ 17 ملفًا الذي يستعمل مكتبات JVM، وأشغّل 384 اختبارًا على iOS. وإن قلت «KMP + SwiftUI» أبدأ بنقل الواجهة الأساسية.</li>
+  <li><b>بالتوازي</b>: أوسّع <code>Models.swift</code> والنواة المنقولة (SignatureEngine، SignatureFieldDecoder، AdvPayloadDecoder، FilterEngine، CodDecoder) — ينفع في كل المسارات.</li>
+  <li><b>آخرًا</b>: طبقة التخزين بنفس صيغة JSON حتى تستورد ملفات الإعدادات والتواقيع من نسخة أندرويد.</li>
+</ol>
+
+<footer>
+  أُعِدّ هذا التحليل من الشيفرة المرفقة نفسها (Fieldwatch 1.1.17: <code>app/src/main/java/app/fieldwatch/**</code>، <code>app/src/test/**</code>، <code>CHANGELOG.md</code>، <code>NOTICE</code>، <code>app/build.gradle.kts</code>، <code>AndroidManifest.xml</code>) ومن قائمة الإصدارات على GitHub. الأرقام مأخوذة بالعدّ من الملفات، لا من التخمين.
+</footer>
+
+</div>
+</body>
+</html>

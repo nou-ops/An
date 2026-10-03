@@ -1,0 +1,77 @@
+# ★ الملف القصير (36 سطرًا) — انسخه كاملًا والصقه في:
+#     Add file → Create new file →  .github/workflows/ios-unsigned-ipa.yml
+# يفعل كل شيء: فكّ الحزمة + فحصها + اختبارات النواة + بناء ٣ نسخ IPA
+# (عادي · TrollStore · TrollStore+platform لمسار Wi-Fi) + حزمتَي DEB (rootless/rootful).
+# العمل الفعلي داخل الحزمة نفسها (scripts/build-all.sh).
+name: Fieldwatch iOS
+on: [workflow_dispatch, push]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: فكّ الحزمة
+        run: |
+          shopt -s nullglob
+          zips=( *.zip )
+          [ ${#zips[@]} -gt 0 ] || { echo "::error::لم أجد أي حزمة .zip في جذر المستودع"; ls -la; exit 1; }
+          newest=""
+          for z in "${zips[@]}"; do if [ -z "$newest" ] || [ "$z" -nt "$newest" ]; then newest="$z"; fi; done
+          if [ ${#zips[@]} -gt 1 ]; then echo "⚠️ ${#zips[@]} حزم — سأستعمل الأحدث: $newest"; printf '   %s\n' "${zips[@]}"; fi
+          echo "📦 أفكّ: $newest ($(du -h "$newest" | cut -f1)) · عناصر: $(unzip -l "$newest" | tail -1 | awk '{print $2}')"
+          unzip -q -o "$newest"
+          if [ ! -f project.yml ]; then
+            root=$(dirname "$(find . -maxdepth 3 -name project.yml | head -1)")
+            if [ -n "$root" ] && [ "$root" != "." ]; then shopt -s dotglob; mv "$root"/* . ; rm -rf "$root"; fi
+          fi
+          [ -f project.yml ] || { echo "::error::الحزمة غير سليمة (لا project.yml)"; exit 1; }
+          echo "✓ الحزمة فُكّت — $(find FieldwatchCore/Sources -name '*.swift' | wc -l) ملف نواة · scripts: $(ls scripts/*.sh 2>/dev/null | wc -l) سكربت"
+
+      - name: أحدث Xcode متاح
+        run: |
+          for x in /Applications/Xcode_18*.app /Applications/Xcode_17*.app /Applications/Xcode_16*.app; do
+            [ -d "$x" ] && sudo xcode-select -s "$x" && break
+          done
+          xcodebuild -version
+
+      - name: فحص الحزمة قبل البناء
+        run: bash scripts/preflight.sh
+
+      - name: أدوات البناء
+        run: |
+          brew install xcodegen
+          brew install dpkg || true
+          brew install ldid || true
+
+      - name: اختبارات النواة
+        run: swift test --package-path FieldwatchCore
+
+      - name: بناء IPA + DEB
+        run: bash scripts/build-all.sh 2>&1 | tee /tmp/fw-build.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-unsigned-ipa
+          path: out/Fieldwatch-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-trollstore-ipa
+          path: out/Fieldwatch-trollstore.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-trollstore-platform-ipa
+          path: out/Fieldwatch-trollstore-platform.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-deb-rootless
+          path: out/*-rootless.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fieldwatch-deb-rootful
+          path: out/*-rootful.deb
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/fw-build.log
